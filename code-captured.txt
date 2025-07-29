@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Uploads Shop - Contact</title>
+  <link rel="stylesheet" href="/contact/style.css">
+  <link rel="stylesheet" href="/style.css">
+  <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0-alpha.6/css/bootstrap.css'>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+  <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.3.0/css/mdb.min.css'>
+  <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css'>
+  <script src="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="/contact/script.js"></script>
+</head>
+
+<body>
+  <header>
+
+    <!--Navbar-->
+    <nav class="navbar navbar-toggleable-md navbar-dark">
+      <div class="container">
+        <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNav1" aria-controls="navbarNav1" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"><i class="fa fa-bars"></i></span>
+        </button>
+        <a class="navbar-brand" href="/">
+          <strong>Academy Shop</strong>
+        </a>
+        <div class="collapse navbar-collapse" id="navbarNav1">
+          <ul class="navbar-nav mr-auto">
+            <li class="nav-item">
+              <a class="nav-link">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link">Features</a>
+            </li>
+            <li class="nav-item active">
+              <a class="nav-link" href="/contact">Contact Us <span class="sr-only">(current)</span></a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+    <!--/.Navbar-->
+
+  </header>
+
+  <main>
+    <div class="form-box">
+      <h1>Contact Us</h1>
+      <p>You may send us your feedback or any inquiries you have.</p>
+      <form action="/contact/submit.php" method="get">
+        <div class="form-group">
+          <label for="name">Name</label>
+          <input class="form-control" id="name" type="text" name="Name" required>
+        </div>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input class="form-control" id="email" type="email" name="Email" required>
+        </div>
+        <div class="form-group">
+          <label for="message">Message</label>
+          <textarea class="form-control" id="message" name="Message" required></textarea>
+        </div>
+        <div>
+          <p>Attach a screenshot</p>
+          <div class="form-group">
+            <div class="input-group">
+              <div class="custom-file">
+                <input name="uploadFile" id="uploadFile" type="file" class="custom-file-input" id="inputGroupFile02" onchange="checkFile(this)" accept=".jpg,.jpeg,.png">
+                <label id="inputGroupFile01" class="custom-file-label" for="inputGroupFile02" aria-describeby="inputGroupFileAddon02">Select Image</label>
+              </div>
+              <button id="upload"><i class="fa fa-upload"></i></button>
+            </div>
+          </div>
+          <p id="upload_message"></p>
+        </div>
+        <input class="btn btn-primary" type="submit" value="Submit">
+      </form>
+    </div>
+  </main>
+</body>
+
+</html>
+
+
+
+
+<?php
+
+function displayHTMLImage($imageFile)
+{
+    $type = mime_content_type($imageFile);
+
+    switch ($type) {
+        case 'image/jpg':
+            echo "<img style=\"object-fit: contain; \" width='400' height='200' src='data:image/jpg;base64," . base64_encode(file_get_contents($imageFile)) . "'/>";
+            break;
+        case 'image/jpeg':
+            echo "<img style=\"object-fit: contain; \" width='400' height='200' src='data:image/jpeg;base64," . base64_encode(file_get_contents($imageFile)) . "'/>";
+            break;
+        case 'image/png':
+            echo "<img style=\"object-fit: contain; \" width='400' height='200' src='data:image/png;base64," . base64_encode(file_get_contents($imageFile)) . "'/>";
+            break;
+        case 'image/gif':
+            echo "<img style=\"object-fit: contain; \" width='400' height='200' src='data:image/gif;base64," . base64_encode(file_get_contents($imageFile)) . "'/>";
+            break;
+        case 'image/svg+xml':
+            libxml_disable_entity_loader(false);
+            $doc = new DOMDocument();
+            $doc->loadXML(file_get_contents($imageFile), LIBXML_NOENT | LIBXML_DTDLOAD);
+            $svg = $doc->getElementsByTagName('svg');
+            echo $svg->item(0)->C14N();
+            break;
+        default:
+            echo "Image type not recognized";
+    }
+}
+
+
+
+
+
+<?php
+require_once('./common-functions.php');
+
+// uploaded files directory
+$target_dir = "./user_feedback_submissions/";
+
+// rename before storing
+$fileName = date('ymd') . '_' . basename($_FILES["uploadFile"]["name"]);
+$target_file = $target_dir . $fileName;
+
+// get content headers
+$contentType = $_FILES['uploadFile']['type'];
+$MIMEtype = mime_content_type($_FILES['uploadFile']['tmp_name']);
+
+// blacklist test
+if (preg_match('/.+\.ph(p|ps|tml)/', $fileName)) {
+    echo "Extension not allowed";
+    die();
+}
+
+// whitelist test
+if (!preg_match('/^.+\.[a-z]{2,3}g$/', $fileName)) {
+    echo "Only images are allowed";
+    die();
+}
+
+// type test
+foreach (array($contentType, $MIMEtype) as $type) {
+    if (!preg_match('/image\/[a-z]{2,3}g/', $type)) {
+        echo "Only images are allowed";
+        die();
+    }
+}
+
+// size test
+if ($_FILES["uploadFile"]["size"] > 500000) {
+    echo "File too large";
+    die();
+}
+
+if (move_uploaded_file($_FILES["uploadFile"]["tmp_name"], $target_file)) {
+    displayHTMLImage($target_file);
+} else {
+    echo "File failed to upload";
+}
+
