@@ -2,8 +2,7 @@ from bs4 import BeautifulSoup
 import urllib.request as hyperlink
 import os
 link =
-hyperlink.urlopen('http: /plugins.svn.wordpress.o
-rg/')
+hyperlink.urlopen('http: /plugins.svn.wordpress.org/')
 soup = BeautifulSoup(link, 'lxml')
 Themes:
 (Same logic, different URL:
@@ -21,3 +20,6 @@ for link in soup.find_all('a', href=True):
 slug = link.get('href').replace("/", "")
 file.write(slug + '\n')
 print(slug)
+
+
+# ffuf -w scrapedlist.txt -u http://target.com/wpcontent/plugins/FUZZ
