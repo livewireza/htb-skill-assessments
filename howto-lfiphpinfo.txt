@@ -1,0 +1,5 @@
+Using phpinfo
+This relies on the ability to access and locate php configuration of the target. This could by accessing and
+locating [phpinfo.php]. The code below can be used and modified as per your scenario to gain shell access. 
+Remember to change on [REQ1] variable to the correct phpconf file you found. 
+Also Make sure to put in the value of [phpsessid] in the code. Change on [local_ip] and [local_port] in the variable [PAYLOAD] to point to your ip and the port of your listener.
